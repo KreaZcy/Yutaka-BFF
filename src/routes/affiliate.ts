@@ -18,8 +18,6 @@ router.post("/create", async (req, res, next) => {
     const authHeader = req.headers.authorization;
     if (!authHeader) { res.status(401).json({ error: "Authorization required" }); return; }
     const token = authHeader.slice(7);
-    const adminToken = req.headers["x-admin-token"] as string;
-    if (!adminToken) { res.status(401).json({ error: "Admin token required" }); return; }
 
     const { name, email, phone, password, commissionRate, discountType, discountValue } = req.body;
     if (!name || !email || !password || !commissionRate) {
@@ -27,10 +25,10 @@ router.post("/create", async (req, res, next) => {
       return;
     }
 
-    const { data: roles } = await rekognizcy.listRoles(adminToken);
+    const { data: roles } = await rekognizcy.listRoles(token);
     let affiliateRole = (roles as Array<{ id: string; name: string }>).find((r) => r.name === "affiliate");
     if (!affiliateRole) {
-      const { data } = await rekognizcy.createRole("affiliate", "Affiliate partner", adminToken);
+      const { data } = await rekognizcy.createRole("affiliate", "Affiliate partner", token);
       affiliateRole = data as { id: string; name: string };
     }
 
@@ -39,12 +37,12 @@ router.post("/create", async (req, res, next) => {
       username: email.split("@")[0] + "_" + Date.now(),
       password,
       role_ids: [affiliateRole.id],
-    }, adminToken);
+    }, token);
 
     const { data: affiliate } = await afiliazcy.createAffiliate({
       name, email, phone,
       metadata: { commissionRate, userId: (user as any).id },
-    }, adminToken);
+    }, token);
 
     res.status(201).json({ user, affiliate });
   } catch (err: any) {
@@ -95,8 +93,7 @@ router.delete("/:id", async (req, res, next) => {
 router.post("/:id/code", async (req, res, next) => {
   try {
     const token = req.headers.authorization?.slice(7);
-    const adminToken = req.headers["x-admin-token"] as string;
-    if (!token || !adminToken) { res.status(401).json({ error: "Authorization required" }); return; }
+    if (!token) { res.status(401).json({ error: "Authorization required" }); return; }
     const { code, commissionRate } = req.body;
     if (!code) { res.status(400).json({ error: "code is required" }); return; }
 
@@ -119,8 +116,7 @@ router.post("/:id/code", async (req, res, next) => {
 router.delete("/:id/code", async (req, res, next) => {
   try {
     const token = req.headers.authorization?.slice(7);
-    const adminToken = req.headers["x-admin-token"] as string;
-    if (!token || !adminToken) { res.status(401).json({ error: "Authorization required" }); return; }
+    if (!token) { res.status(401).json({ error: "Authorization required" }); return; }
     const { code } = req.body;
     if (!code) { res.status(400).json({ error: "code is required" }); return; }
     await afiliazcy.removeCode(req.params.id, code, token);

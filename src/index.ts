@@ -5,6 +5,7 @@ import morgan from "morgan";
 import { config } from "./config.js";
 import { getCorsOptions } from "./middleware/cors.js";
 import { authMiddleware } from "./middleware/auth.js";
+import { ServiceError } from "./clients/base.js";
 import { router as affiliateRouter } from "./routes/affiliate.js";
 import { router as promoRouter } from "./routes/promo.js";
 import { router as dashboardRouter } from "./routes/dashboard.js";
@@ -23,6 +24,15 @@ app.use("/bff", dashboardRouter);
 
 app.get("/health", (_req, res) => {
   res.json({ status: "ok", service: "yutaka-bff" });
+});
+
+app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  if (err instanceof ServiceError) {
+    res.status(err.status).json({ error: err.message, details: err.body });
+  } else {
+    console.error("Unhandled error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
 });
 
 const server = app.listen(config.PORT, () => {
