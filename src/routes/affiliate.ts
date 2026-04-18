@@ -19,9 +19,9 @@ router.post("/create", async (req, res, next) => {
     if (!authHeader) { res.status(401).json({ error: "Authorization required" }); return; }
     const token = authHeader.slice(7);
 
-    const { name, email, phone, password, commissionRate, discountType, discountValue } = req.body;
-    if (!name || !email || !password || !commissionRate) {
-      res.status(400).json({ error: "name, email, password, commissionRate required" });
+    const { name, email, phone, password } = req.body;
+    if (!name || !email || !password) {
+      res.status(400).json({ error: "name, email, password required" });
       return;
     }
 
@@ -41,7 +41,7 @@ router.post("/create", async (req, res, next) => {
 
     const { data: affiliate } = await afiliazcy.createAffiliate({
       name, email, phone,
-      metadata: { commissionRate, userId: (user as any).id },
+      metadata: { userId: (user as any).id },
     }, token);
 
     res.status(201).json({ user, affiliate });
@@ -94,18 +94,21 @@ router.post("/:id/code", async (req, res, next) => {
   try {
     const token = req.headers.authorization?.slice(7);
     if (!token) { res.status(401).json({ error: "Authorization required" }); return; }
-    const { code, commissionRate } = req.body;
-    if (!code) { res.status(400).json({ error: "code is required" }); return; }
+    const { code, commissionRate, discountType, discountValue } = req.body;
+    if (!code || !commissionRate || !discountType || discountValue === undefined) {
+      res.status(400).json({ error: "code, commissionRate, discountType, discountValue required" });
+      return;
+    }
 
     const { data: affiliate } = await afiliazcy.getAffiliate(req.params.id, token);
     await afiliazcy.addCode(req.params.id, code, token);
     await promoService.createPromo({
       code: code.toUpperCase(),
       type: "affiliate",
-      discountType: (req.body.discountType as any) || (affiliate as any)?.metadata?.discountType || "percentage",
-      discountValue: req.body.discountValue || (affiliate as any)?.metadata?.discountValue || 10,
+      discountType,
+      discountValue,
       affiliatorId: req.params.id,
-      commissionAmount: commissionRate || 0,
+      commissionAmount: commissionRate,
       dayCondition: "all",
       expiryType: "none",
     }, buildServiceToken(req));

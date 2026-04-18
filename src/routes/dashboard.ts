@@ -61,13 +61,12 @@ router.get("/dashboard/owner", async (req, res, next) => {
     if (!req.auth) { res.status(401).json({ error: "Authorization required" }); return; }
     if (!req.auth.roles.includes("admin")) { res.status(403).json({ error: "Insufficient permissions" }); return; }
 
-    const token = req.headers.authorization!.slice(7);
     const serviceToken = buildServiceToken(req);
 
     const [affiliatesRes, promosRes, ordersRes] = await Promise.all([
-      afiliazcy.listAffiliates(token),
+      afiliazcy.listAffiliates(serviceToken),
       promoService.listPromos({ type: "affiliate" }, serviceToken),
-      orderService.getAdminOrders("completed", 1, 20, token),
+      orderService.getAdminOrders("completed", 1, 20, serviceToken),
     ]);
 
     const affiliates = affiliatesRes.data as Array<any>;

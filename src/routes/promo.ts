@@ -20,6 +20,15 @@ router.get("/list", async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+router.post("/create", async (req, res, next) => {
+  try {
+    if (!req.auth) { res.status(401).json({ error: "Authorization required" }); return; }
+    const token = buildServiceToken(req);
+    const { data } = await promoService.createPromo(req.body, token);
+    res.status(201).json(data);
+  } catch (err) { next(err); }
+});
+
 router.get("/:id", async (req, res, next) => {
   try {
     if (!req.auth) { res.status(401).json({ error: "Authorization required" }); return; }
