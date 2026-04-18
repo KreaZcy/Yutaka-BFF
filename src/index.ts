@@ -6,8 +6,10 @@ import { config } from "./config.js";
 import { getCorsOptions } from "./middleware/cors.js";
 import { authMiddleware } from "./middleware/auth.js";
 import { ServiceError } from "./clients/base.js";
+import { router as authRouter } from "./routes/auth.js";
 import { router as affiliateRouter } from "./routes/affiliate.js";
-import { router as promoRouter } from "./routes/promo.js";
+import { router as promoGatewayRouter } from "./routes/promoGateway.js";
+import { router as orderRouter } from "./routes/order.js";
 import { router as dashboardRouter } from "./routes/dashboard.js";
 
 const app = express();
@@ -18,8 +20,10 @@ app.use(cors(getCorsOptions()));
 app.use(express.json());
 app.use(authMiddleware);
 
+app.use("/bff/auth", authRouter);
 app.use("/bff/affiliate", affiliateRouter);
-app.use("/bff/promo", promoRouter);
+app.use("/bff/promo", promoGatewayRouter);
+app.use("/bff/order", orderRouter);
 app.use("/bff", dashboardRouter);
 
 app.get("/health", (_req, res) => {
@@ -36,7 +40,7 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
 });
 
 const server = app.listen(config.PORT, () => {
-  console.log(`Yutaka BFF listening on port ${config.PORT}`);
+  console.log(`Yutaka BFF (API Gateway) listening on port ${config.PORT}`);
 });
 
 export { app, server };
