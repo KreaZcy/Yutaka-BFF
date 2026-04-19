@@ -95,6 +95,14 @@ router.get("/admin/revenue", requireAuth, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+router.get("/admin/stats", requireAuth, async (req, res, next) => {
+  try {
+    const qs = new URLSearchParams(req.query as any).toString();
+    const { data } = await serviceFetch(`${orderUrl("/admin/stats")}?${qs}`, { headers: serviceHeaders(req) });
+    res.json(data);
+  } catch (err) { next(err); }
+});
+
 router.get("/admin/list", requireAuth, async (req, res, next) => {
   try {
     const qs = new URLSearchParams(req.query as any).toString();
