@@ -34,7 +34,7 @@ router.post("/create", async (req, res, next) => {
 
     const { data: user } = await rekognizcy.createUser({
       email,
-      username: email.split("@")[0].replace(/[^a-zA-Z0-9_-]/g, "") + "_" + Date.now(),
+      username: name.toLowerCase().replace(/[^a-zA-Z0-9_-]/g, "").replace(/^[^a-zA-Z]+/, "").slice(0, 100) || email.split("@")[0].replace(/[^a-zA-Z0-9_-]/g, ""),
       password,
       role_ids: [affiliateRole.id],
     }, token);
