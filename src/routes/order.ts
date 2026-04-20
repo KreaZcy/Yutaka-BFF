@@ -17,6 +17,7 @@ function buildServiceToken(req: express.Request): string {
 
 const serviceHeaders = (req: express.Request) => ({
   Authorization: `Bearer ${buildServiceToken(req)}`,
+  "Content-Type": "application/json",
 });
 
 const passHeaders = (req: express.Request) => ({
@@ -123,6 +124,7 @@ router.post("/:orderId/approve", requireAuth, async (req, res, next) => {
 
 router.post("/:orderId/reject", requireAuth, async (req, res, next) => {
   try {
+    console.log("[REJECT] body:", JSON.stringify(req.body), "headers.content-type:", req.get("content-type"));
     const { data } = await serviceFetch(orderUrl(`/${req.params.orderId}/reject`), {
       method: "POST",
       headers: serviceHeaders(req),
