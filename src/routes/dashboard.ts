@@ -18,7 +18,6 @@ router.get("/dashboard/affiliate", async (req, res, next) => {
     if (!req.auth) { res.status(401).json({ error: "Authorization required" }); return; }
     if (!req.auth.roles.includes("affiliate")) { res.status(403).json({ error: "Insufficient permissions" }); return; }
 
-    const affiliatorId = req.auth.user_id;
     const token = buildServiceToken(req);
 
     const [codesRes, bookingsRes] = await Promise.all([
@@ -27,8 +26,7 @@ router.get("/dashboard/affiliate", async (req, res, next) => {
     ]);
 
     const codesRaw = codesRes.data as any;
-    const codesArray = Array.isArray(codesRaw) ? codesRaw : (codesRaw?.promos || codesRaw?.codes || []);
-    const codes = codesArray.filter((p: any) => p.affiliatorId === affiliatorId);
+    const codes = Array.isArray(codesRaw) ? codesRaw : (codesRaw?.promos || codesRaw?.codes || []);
     const bookings = Array.isArray(bookingsRes.data) ? bookingsRes.data as Array<any> : ((bookingsRes.data as any)?.bookings || (bookingsRes.data as any)?.orders || []);
 
     const confirmedCommission = bookings

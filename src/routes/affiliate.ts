@@ -113,13 +113,14 @@ router.post("/:id/code", async (req, res, next) => {
     }
 
     const { data: affiliate } = await afiliazcy.getAffiliate(req.params.id, token);
+    const rekogniZcyUserId = (affiliate as any)?.metadata?.userId || req.params.id;
     await afiliazcy.addCode(req.params.id, code, token);
     await promoService.createPromo({
       code: code.toUpperCase(),
       type: "affiliate",
       discountType,
       discountValue,
-      affiliatorId: req.params.id,
+      affiliatorId: rekogniZcyUserId,
       commissionAmount: commissionRate,
       dayCondition: "all",
       expiryType: "none",
