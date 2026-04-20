@@ -26,8 +26,10 @@ router.get("/dashboard/affiliate", async (req, res, next) => {
       orderService.getAffiliateBookings(token),
     ]);
 
-    const codes = (codesRes.data as Array<any>).filter((p: any) => p.affiliatorId === affiliatorId);
-    const bookings = bookingsRes.data as Array<any>;
+    const codesRaw = codesRes.data as any;
+    const codesArray = Array.isArray(codesRaw) ? codesRaw : (codesRaw?.promos || codesRaw?.codes || []);
+    const codes = codesArray.filter((p: any) => p.affiliatorId === affiliatorId);
+    const bookings = Array.isArray(bookingsRes.data) ? bookingsRes.data as Array<any> : ((bookingsRes.data as any)?.bookings || (bookingsRes.data as any)?.orders || []);
 
     const confirmedCommission = bookings
       .filter((b: any) => b.commissionStatus === "confirmed")
