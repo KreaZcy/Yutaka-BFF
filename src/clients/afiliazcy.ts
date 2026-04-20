@@ -71,6 +71,7 @@ export const afiliazcy = {
     user_id?: string;
     source_service?: string;
     action_type?: string;
+    action_details?: Record<string, unknown>;
   }, token: string) {
     return serviceFetch(`${BASE}/api/v1/use-code`, {
       method: "POST",

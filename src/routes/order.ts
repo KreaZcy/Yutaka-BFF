@@ -2,6 +2,8 @@ import express from "express";
 import { serviceFetch } from "../clients/base.js";
 import { config } from "../config.js";
 import { requireAuth } from "../middleware/auth.js";
+import { afiliazcy } from "../clients/afiliazcy.js";
+import { promoService } from "../clients/promo.js";
 
 const router = express.Router();
 
@@ -42,11 +44,60 @@ router.get("/availability", async (req, res, next) => {
 
 router.post("/create", async (req, res, next) => {
   try {
+    const promoCode = req.body.promoCode || null;
+    const orderBody = { ...req.body };
+    delete orderBody.promoCode;
+
     const { data, status } = await serviceFetch(orderUrl("/create"), {
       method: "POST",
-      body: JSON.stringify(req.body),
+      body: JSON.stringify(orderBody),
     });
-    res.status(status).json(data);
+
+    const order = data as any;
+
+    if (promoCode && order.orderId) {
+      try {
+        const promoRes = await promoService.applyPromo({
+          promoCode,
+          orderId: order.orderId,
+          guestPhone: order.guestPhone || req.body.guestPhone,
+          guestName: order.guestName || req.body.guestName,
+          checkInDate: order.checkInDate || req.body.checkInDate,
+          checkOutDate: order.checkOutDate || req.body.checkOutDate,
+          nightlyBreakdown: order.nightlyBreakdown || [],
+        });
+
+        const promoData = promoRes.data as any;
+        order.promoCode = promoCode;
+        order.discountAmount = promoData.discountAmount || 0;
+        order.totalAmount = (order.subtotal || order.totalAmount) - order.discountAmount + (order.uniqueCode || 0);
+      } catch (err: any) {
+        console.error("[Promo apply] failed:", err.message);
+        order.promoCode = null;
+        order.discountAmount = 0;
+      }
+    }
+
+    if (order.promoCode) {
+      afiliazcy.useCode({
+        code: order.promoCode,
+        user_id: order.guestPhone || req.body.guestPhone || "",
+        source_service: "yutaka-order",
+        action_type: "booking",
+        action_details: {
+          orderId: order.orderId,
+          guestName: order.guestName || req.body.guestName,
+          totalAmount: order.totalAmount,
+          discountAmount: order.discountAmount,
+          checkInDate: order.checkInDate || req.body.checkInDate,
+          checkOutDate: order.checkOutDate || req.body.checkOutDate,
+        },
+      }, "yutaka-order:system:yutaka-bff").catch((err) => {
+        console.error("[AfiliaZcy use-code] failed:", err.message);
+      });
+    }
+
+    res.status(status).json(order);
   } catch (err) { next(err); }
 });
 

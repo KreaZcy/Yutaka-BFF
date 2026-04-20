@@ -59,6 +59,18 @@ router.get("/list", async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+router.get("/me", async (req, res, next) => {
+  try {
+    if (!req.auth) { res.status(401).json({ error: "Authorization required" }); return; }
+    const token = req.headers.authorization?.slice(7) || buildServiceToken(req);
+    const userId = req.auth.user_id;
+    const { data: affiliates } = await afiliazcy.listAffiliates(token);
+    const affiliate = (affiliates as Array<any>).find((a: any) => a.metadata?.userId === userId);
+    if (!affiliate) { res.status(404).json({ error: "Affiliate profile not found" }); return; }
+    res.json(affiliate);
+  } catch (err) { next(err); }
+});
+
 router.get("/:id", async (req, res, next) => {
   try {
     const token = req.headers.authorization?.slice(7);
