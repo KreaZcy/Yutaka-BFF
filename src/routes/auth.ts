@@ -55,4 +55,14 @@ router.post("/logout", async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+router.post("/magic/verify", async (req, res, next) => {
+  try {
+    const { data, status } = await serviceFetch(authUrl("/magic/verify"), {
+      method: "POST",
+      body: JSON.stringify(req.body),
+    });
+    res.status(status).json(data);
+  } catch (err) { next(err); }
+});
+
 export { router };
