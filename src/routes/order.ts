@@ -48,14 +48,19 @@ router.post("/create", async (req, res, next) => {
     const orderBody = { ...req.body };
     delete orderBody.promoCode;
 
+    console.log("[ORDER CREATE] promoCode from body:", promoCode);
+    console.log("[ORDER CREATE] orderBody keys:", Object.keys(orderBody));
+
     const { data, status } = await serviceFetch(orderUrl("/create"), {
       method: "POST",
       body: JSON.stringify(orderBody),
     });
 
     const order = data as any;
+    console.log("[ORDER CREATE] order response orderId:", order.orderId, "subtotal:", order.subtotal);
 
     if (promoCode && order.orderId) {
+      console.log("[ORDER CREATE] Applying promo:", promoCode, "to order:", order.orderId);
       try {
         const promoRes = await promoService.applyPromo({
           promoCode,
@@ -68,14 +73,17 @@ router.post("/create", async (req, res, next) => {
         });
 
         const promoData = promoRes.data as any;
+        console.log("[ORDER CREATE] Promo applied successfully, discount:", promoData.discountAmount);
         order.promoCode = promoCode;
         order.discountAmount = promoData.discountAmount || 0;
         order.totalAmount = (order.subtotal || order.totalAmount) - order.discountAmount + (order.uniqueCode || 0);
       } catch (err: any) {
-        console.error("[Promo apply] failed:", err.message);
+        console.error("[ORDER CREATE] [Promo apply] failed:", err.message);
         order.promoCode = null;
         order.discountAmount = 0;
       }
+    } else {
+      console.log("[ORDER CREATE] No promoCode or no orderId, skipping promo. promoCode:", promoCode, "orderId:", order.orderId);
     }
 
     if (order.promoCode) {
