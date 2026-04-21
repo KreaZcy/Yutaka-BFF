@@ -41,6 +41,31 @@ router.get("/dashboard/affiliate", async (req, res, next) => {
       .filter((b: any) => b.status === "completed")
       .reduce((sum: number, b: any) => sum + (b.totalAmount || 0), 0);
 
+    let disbursementInfo: any = { totalDisbursed: 0, pendingPayouts: 0, availableForPayout: confirmedCommission };
+    try {
+      const userId = req.auth!.user_id;
+      const { data: affiliates } = await afiliazcy.listAffiliates(token);
+      const affiliate = (affiliates as Array<any>).find((a: any) => a.metadata?.userId === userId);
+      if (affiliate) {
+        const [quotaRes, disbursementsRes] = await Promise.all([
+          afiliazcy.getUnclaimedQuota(affiliate.id, token),
+          afiliazcy.listDisbursements({ affiliate_id: affiliate.id }, token),
+        ]);
+        const quota = quotaRes.data as any;
+        const disbursements = disbursementsRes.data as Array<any>;
+        const pending = disbursements.filter((d: any) => d.status === "pending").reduce((s: number, d: any) => s + (d.quota || 0), 0);
+        const disbursed = disbursements.filter((d: any) => d.status === "processed").reduce((s: number, d: any) => s + (d.quota || 0), 0);
+        disbursementInfo = {
+          totalDisbursed: disbursed,
+          pendingPayouts: pending,
+          availableForPayout: Math.max(0, confirmedCommission - disbursed - pending),
+          recentDisbursements: disbursements.slice(-10).reverse(),
+        };
+      }
+    } catch (err: any) {
+      console.error("[DASHBOARD] disbursement fetch failed:", err.message);
+    }
+
     res.json({
       codes: codes.map((c: any) => ({
         code: c.code,
@@ -52,6 +77,7 @@ router.get("/dashboard/affiliate", async (req, res, next) => {
       })),
       stats: { totalBookings: bookings.length, confirmedCommission, pendingCommission, revenue },
       bookings,
+      disbursement: disbursementInfo,
     });
   } catch (err) { next(err); }
 });

@@ -80,14 +80,59 @@ export const afiliazcy = {
     });
   },
 
+  async getAnalytics(code: string, token: string) {
+    return serviceFetch(`${BASE}/api/v1/analytics/${code}/summary`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  },
+
+  async listDisbursements(params: { affiliate_id?: string; status?: string }, token: string) {
+    const qs = new URLSearchParams();
+    if (params.affiliate_id) qs.set("affiliate_id", params.affiliate_id);
+    if (params.status) qs.set("status", params.status);
+    return serviceFetch(`${BASE}/api/v1/disbursements?${qs.toString()}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  },
+
+  async getDisbursement(id: string, token: string) {
+    return serviceFetch(`${BASE}/api/v1/disbursements/${id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  },
+
+  async createDisbursement(body: {
+    affiliate_id: string;
+    quota: number;
+    metadata?: Record<string, unknown>;
+  }, token: string) {
+    return serviceFetch(`${BASE}/api/v1/disbursements`, {
+      method: "POST",
+      body: JSON.stringify(body),
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  },
+
+  async updateDisbursement(id: string, body: {
+    status?: string;
+    quota?: number;
+    metadata?: Record<string, unknown>;
+  }, token: string) {
+    return serviceFetch(`${BASE}/api/v1/disbursements/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  },
+
   async getUnclaimedQuota(affiliateId: string, token: string) {
     return serviceFetch(`${BASE}/api/v1/disbursements/unclaimed-quota?affiliate_id=${affiliateId}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
   },
 
-  async getAnalytics(code: string, token: string) {
-    return serviceFetch(`${BASE}/api/v1/analytics/${code}/summary`, {
+  async getEvents(code: string, token: string) {
+    return serviceFetch(`${BASE}/api/v1/analytics/${code}/events`, {
       headers: { Authorization: `Bearer ${token}` },
     });
   },

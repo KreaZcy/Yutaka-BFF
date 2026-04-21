@@ -11,6 +11,7 @@ import { router as affiliateRouter } from "./routes/affiliate.js";
 import { router as promoGatewayRouter } from "./routes/promoGateway.js";
 import { router as orderRouter } from "./routes/order.js";
 import { router as dashboardRouter } from "./routes/dashboard.js";
+import { router as disbursementRouter } from "./routes/disbursement.js";
 
 const app = express();
 
@@ -25,6 +26,7 @@ app.use("/bff/affiliate", affiliateRouter);
 app.use("/bff/promo", promoGatewayRouter);
 app.use("/bff/order", orderRouter);
 app.use("/bff", dashboardRouter);
+app.use("/bff/disbursement", disbursementRouter);
 
 app.get("/health", (_req, res) => {
   res.json({ status: "ok", service: "yutaka-bff" });
