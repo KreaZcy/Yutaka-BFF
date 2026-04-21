@@ -48,19 +48,14 @@ router.post("/create", async (req, res, next) => {
     const orderBody = { ...req.body };
     delete orderBody.promoCode;
 
-    console.log("[ORDER CREATE] promoCode from body:", promoCode);
-    console.log("[ORDER CREATE] orderBody keys:", Object.keys(orderBody));
-
     const { data, status } = await serviceFetch(orderUrl("/create"), {
       method: "POST",
       body: JSON.stringify(orderBody),
     });
 
     const order = data as any;
-    console.log("[ORDER CREATE] order response orderId:", order.orderId, "subtotal:", order.subtotal);
 
     if (promoCode && order.orderId) {
-      console.log("[ORDER CREATE] Applying promo:", promoCode, "to order:", order.orderId);
       try {
         const promoRes = await promoService.applyPromo({
           promoCode,
@@ -73,12 +68,12 @@ router.post("/create", async (req, res, next) => {
         });
 
         const promoData = promoRes.data as any;
-        console.log("[ORDER CREATE] Promo applied successfully, discount:", promoData.discountAmount);
+        console.log("[ORDER CREATE]", order.orderId, "promo:", promoCode, "discount:", promoData.discountAmount);
         order.promoCode = promoCode;
         order.discountAmount = promoData.discountAmount || 0;
         order.totalAmount = (order.subtotal || order.totalAmount) - order.discountAmount + (order.uniqueCode || 0);
       } catch (err: any) {
-        console.error("[ORDER CREATE] [Promo apply] failed:", err.message);
+        console.error("[ORDER CREATE]", order.orderId, "promo apply failed:", err.message);
         order.promoCode = null;
         order.discountAmount = 0;
       }
@@ -87,7 +82,7 @@ router.post("/create", async (req, res, next) => {
     }
 
     if (order.promoCode) {
-      afiliazcy.useCode({
+      const useCodePayload = {
         code: order.promoCode,
         user_id: order.guestPhone || req.body.guestPhone || "",
         source_service: "yutaka-order",
@@ -100,9 +95,21 @@ router.post("/create", async (req, res, next) => {
           checkInDate: order.checkInDate || req.body.checkInDate,
           checkOutDate: order.checkOutDate || req.body.checkOutDate,
         },
-      }, "yutaka-order:system:yutaka-bff").catch((err) => {
-        console.error("[AfiliaZcy use-code] failed:", err.message);
-      });
+      };
+      const tryUseCode = async (attempt: number): Promise<void> => {
+        try {
+          await afiliazcy.useCode(useCodePayload, "yutaka-order:system:yutaka-bff");
+          console.log("[AfiliaZcy use-code] success on attempt", attempt);
+        } catch (err: any) {
+          if (attempt < 3) {
+            console.warn("[AfiliaZcy use-code] attempt", attempt, "failed:", err.message, "- retrying in 1s...");
+            await new Promise(r => setTimeout(r, 1000));
+            return tryUseCode(attempt + 1);
+          }
+          console.error("[AfiliaZcy use-code] failed after 3 attempts:", err.message);
+        }
+      };
+      setTimeout(() => tryUseCode(1), 500);
     }
 
     res.status(status).json(order);
