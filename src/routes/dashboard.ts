@@ -20,14 +20,22 @@ router.get("/dashboard/affiliate", async (req, res, next) => {
 
     const token = buildServiceToken(req);
 
-    const [codesRes, bookingsRes] = await Promise.all([
+    const [codesRes] = await Promise.all([
       promoService.getAffiliateCodes(token),
-      orderService.getAffiliateBookings(token),
     ]);
 
     const codesRaw = codesRes.data as any;
     const codes = Array.isArray(codesRaw) ? codesRaw : (codesRaw?.promos || codesRaw?.codes || []);
-    const bookings = Array.isArray(bookingsRes.data) ? bookingsRes.data as Array<any> : ((bookingsRes.data as any)?.bookings || (bookingsRes.data as any)?.orders || []);
+
+    const bookings: any[] = [];
+    await Promise.all(codes.map(async (c: any) => {
+      try {
+        const usageRes = await promoService.getPromoUsage(c.code, { page: 1, limit: 100 }, token);
+        const usageData = usageRes.data as any;
+        const usages = Array.isArray(usageData?.usages) ? usageData.usages : [];
+        bookings.push(...usages);
+      } catch { /* skip */ }
+    }));
 
     const confirmedCommission = bookings
       .filter((b: any) => b.commissionStatus === "confirmed")
@@ -37,11 +45,12 @@ router.get("/dashboard/affiliate", async (req, res, next) => {
       .filter((b: any) => b.commissionStatus === "pending")
       .reduce((sum: number, b: any) => sum + (b.commissionAmount || 0), 0);
 
-    const revenue = bookings
-      .filter((b: any) => b.status === "completed")
-      .reduce((sum: number, b: any) => sum + (b.totalAmount || 0), 0);
+    const totalCommission = confirmedCommission + pendingCommission || codes.reduce((s: number, c: any) => s + ((c.commissionAmount || 0) * (c.usageCount || 0)), 0);
 
-    let disbursementInfo: any = { totalDisbursed: 0, pendingPayouts: 0, availableForPayout: confirmedCommission };
+    const revenue = bookings
+      .reduce((sum: number, b: any) => sum + (b.discountApplied || 0), 0);
+
+    let disbursementInfo: any = { totalDisbursed: 0, pendingPayouts: 0, availableForPayout: totalCommission };
     try {
       const userId = req.auth!.user_id;
       const { data: affiliates } = await afiliazcy.listAffiliates(token);
@@ -58,7 +67,7 @@ router.get("/dashboard/affiliate", async (req, res, next) => {
         disbursementInfo = {
           totalDisbursed: disbursed,
           pendingPayouts: pending,
-          availableForPayout: Math.max(0, confirmedCommission - disbursed - pending),
+          availableForPayout: Math.max(0, totalCommission - disbursed - pending),
           recentDisbursements: disbursements.slice(-10).reverse(),
         };
       }
@@ -73,9 +82,9 @@ router.get("/dashboard/affiliate", async (req, res, next) => {
         discountValue: c.discountValue,
         commissionAmount: c.commissionAmount,
         usageCount: c.usageCount,
-        totalCommission: c.totalCommission || 0,
+        totalCommission: c.totalCommission > 0 ? c.totalCommission : (c.commissionAmount || 0) * (c.usageCount || 0),
       })),
-      stats: { totalBookings: bookings.length, confirmedCommission, pendingCommission, revenue },
+      stats: { totalBookings: bookings.length, confirmedCommission, pendingCommission, totalCommission: totalCommission || codes.reduce((s: number, c: any) => s + ((c.commissionAmount || 0) * (c.usageCount || 0)), 0), revenue },
       bookings,
       disbursement: disbursementInfo,
     });
@@ -97,7 +106,8 @@ router.get("/dashboard/owner", async (req, res, next) => {
 
     const affiliates = affiliatesRes.data as Array<any>;
     const promos = promosRes.data as { promos: any[]; total: number };
-    const orders = ordersRes.data as any[];
+    const ordersRaw = ordersRes.data as any;
+    const orders = Array.isArray(ordersRaw) ? ordersRaw : (ordersRaw?.orders || []);
 
     const totalRevenue = orders.reduce((sum: number, o: any) => sum + (o.totalAmount || 0), 0);
     const totalCommission = promos.promos.reduce((sum: number, p: any) => sum + ((p.commissionAmount || 0) * (p.usageCount || 0)), 0);

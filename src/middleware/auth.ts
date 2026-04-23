@@ -31,7 +31,8 @@ export async function authMiddleware(req: Request, _res: Response, next: NextFun
       audience: "api-gateway",
     });
     req.auth = payload as unknown as JWTPayload;
-  } catch {
+  } catch (err: any) {
+    console.log("[AUTH] JWT verify failed:", err.message?.substring(0, 100), "issuer:", config.JWT_ISSUER);
     const parts = token.split(":");
     if (parts.length >= 2) {
       const [userId, role, username] = parts;

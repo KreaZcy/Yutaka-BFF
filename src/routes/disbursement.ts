@@ -29,29 +29,26 @@ router.get("/balance", requireAuth, async (req, res, next) => {
       return;
     }
 
-    const [quotaRes, disbursementsRes] = await Promise.all([
-      afiliazcy.getUnclaimedQuota(affiliate.id, token),
+    const [codesRes, disbursementsRes] = await Promise.all([
+      promoService.getAffiliateCodes(token),
       afiliazcy.listDisbursements({ affiliate_id: affiliate.id }, token),
     ]);
 
-    const quota = quotaRes.data as any;
+    const codesRaw = codesRes.data as any;
+    const codes = Array.isArray(codesRaw) ? codesRaw : (codesRaw?.codes || []);
+    const confirmedCommission = codes.reduce((s: number, c: any) => s + ((c.commissionAmount || 0) * (c.usageCount || 0)), 0);
+
     const disbursements = disbursementsRes.data as Array<any>;
-
-    const pendingPayouts = disbursements
-      .filter((d: any) => d.status === "pending")
-      .reduce((sum: number, d: any) => sum + (d.quota || 0), 0);
-
-    const totalDisbursed = disbursements
-      .filter((d: any) => d.status === "processed")
-      .reduce((sum: number, d: any) => sum + (d.quota || 0), 0);
+    const totalDisbursed = disbursements.filter((d: any) => d.status === "processed").reduce((s: number, d: any) => s + (d.quota || 0), 0);
+    const pendingPayouts = disbursements.filter((d: any) => d.status === "pending").reduce((s: number, d: any) => s + (d.quota || 0), 0);
 
     res.json({
       affiliateId: affiliate.id,
-      totalUsage: quota.total_usage || 0,
-      unclaimedQuota: quota.unclaimed_quota || 0,
+      totalUsage: codes.reduce((s: number, c: any) => s + (c.usageCount || 0), 0),
+      confirmedCommission,
       pendingPayouts,
       totalDisbursed,
-      availableForPayout: Math.max(0, (quota.unclaimed_quota || 0) - pendingPayouts),
+      availableForPayout: Math.max(0, confirmedCommission - totalDisbursed - pendingPayouts),
       disbursements,
     });
   } catch (err) { next(err); }
@@ -79,11 +76,24 @@ router.post("/request", requireAuth, async (req, res, next) => {
       return;
     }
 
-    const { data: quotaRes } = await afiliazcy.getUnclaimedQuota(affiliate.id, token);
-    const quota = quotaRes as any;
+    const [codesRes, disbursementsRes] = await Promise.all([
+      promoService.getAffiliateCodes(token),
+      afiliazcy.listDisbursements({ affiliate_id: affiliate.id }, token),
+    ]);
 
-    if (amount > (quota.unclaimed_quota || 0)) {
-      res.status(400).json({ error: `Requested amount ${amount} exceeds available balance ${quota.unclaimed_quota || 0}` });
+    const codesRaw = codesRes.data as any;
+    const codes = Array.isArray(codesRaw) ? codesRaw : (codesRaw?.codes || []);
+    const confirmedCommission = codes.reduce((s: number, c: any) => s + ((c.commissionAmount || 0) * (c.usageCount || 0)), 0);
+    const alreadyDisbursed = (disbursementsRes.data as Array<any>)
+      .filter((d: any) => d.status === "processed")
+      .reduce((s: number, d: any) => s + (d.quota || 0), 0);
+    const pendingPayout = (disbursementsRes.data as Array<any>)
+      .filter((d: any) => d.status === "pending")
+      .reduce((s: number, d: any) => s + (d.quota || 0), 0);
+    const available = confirmedCommission - alreadyDisbursed - pendingPayout;
+
+    if (amount > available) {
+      res.status(400).json({ error: `Requested amount ${amount} exceeds available balance ${available}` });
       return;
     }
 

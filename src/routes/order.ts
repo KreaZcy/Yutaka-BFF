@@ -8,6 +8,7 @@ import { promoService } from "../clients/promo.js";
 const router = express.Router();
 
 const orderUrl = (path: string) => `${config.ORDER_SERVICE_URL}/order${path}`;
+const promoUrl = (path: string) => `${config.PROMO_SERVICE_URL}${path}`;
 
 function buildServiceToken(req: express.Request): string {
   if (req.auth) {
@@ -184,6 +185,14 @@ router.post("/:orderId/approve", requireAuth, async (req, res, next) => {
       method: "POST",
       headers: serviceHeaders(req),
     });
+    try {
+      await serviceFetch(promoUrl("/internal/commission/confirm"), {
+        method: "POST",
+        body: JSON.stringify({ orderId: req.params.orderId }),
+      });
+    } catch (e: any) {
+      console.warn("[APPROVE] commission confirm failed:", e.message);
+    }
     res.json(data);
   } catch (err) { next(err); }
 });
@@ -196,6 +205,14 @@ router.post("/:orderId/reject", requireAuth, async (req, res, next) => {
       headers: serviceHeaders(req),
       body: JSON.stringify(req.body),
     });
+    try {
+      await serviceFetch(promoUrl("/internal/commission/cancel"), {
+        method: "POST",
+        body: JSON.stringify({ orderId: req.params.orderId }),
+      });
+    } catch (e: any) {
+      console.warn("[REJECT] commission cancel failed:", e.message);
+    }
     res.json(data);
   } catch (err) { next(err); }
 });

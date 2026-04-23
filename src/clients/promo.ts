@@ -76,6 +76,12 @@ export const promoService = {
     });
   },
 
+  async getAffiliateBookings(token: string) {
+    return serviceFetch(`${BASE}/promo/affiliate/bookings`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  },
+
   async validatePromo(params: {
     code: string;
     checkIn: string;
