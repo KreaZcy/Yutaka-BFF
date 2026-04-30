@@ -106,7 +106,7 @@ router.post("/:id/code", async (req, res, next) => {
   try {
     const token = req.headers.authorization?.slice(7);
     if (!token) { res.status(401).json({ error: "Authorization required" }); return; }
-    const { code, commissionRate, discountType, discountValue } = req.body;
+    const { code, commissionRate, discountType, discountValue, expiryType, expiryDate, expiryDurationDays, maxUsage } = req.body;
     if (!code || !commissionRate || !discountType || discountValue === undefined) {
       res.status(400).json({ error: "code, commissionRate, discountType, discountValue required" });
       return;
@@ -123,7 +123,10 @@ router.post("/:id/code", async (req, res, next) => {
       affiliatorId: rekogniZcyUserId,
       commissionAmount: commissionRate,
       dayCondition: "all",
-      expiryType: "none",
+      expiryType: expiryType || "none",
+      expiryDate: expiryDate || undefined,
+      expiryDurationDays: expiryDurationDays ? Number(expiryDurationDays) : undefined,
+      maxUsage: maxUsage ? Number(maxUsage) : undefined,
     }, buildServiceToken(req));
     res.json({ message: "Code added and promo created" });
   } catch (err) { next(err); }
